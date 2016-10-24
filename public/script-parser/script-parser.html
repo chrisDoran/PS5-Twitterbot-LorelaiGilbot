@@ -1,0 +1,97 @@
+<html>
+<head>
+
+</head>
+<body>
+	<input type="file" name="file" id="file">
+	<a id="downloadAnchorElem" style="display: none">Download Captain's Log</a>
+</body>
+<script>
+	// var series = [episode];
+	// var episode = { title: "", season: "", episode: "", script: [entry] };
+	// var stageDirection = { TYPE: "ST", text: "" };
+	// var setting { TYPE: "SE", text:"" };
+	// var dialogue { TYPE: "DI" character: "", text: "" };
+
+	document.getElementById('file').onchange = function(){
+		console.log("Got File");
+
+		var file = this.files[0];
+
+		var reader = new FileReader();
+		reader.onload = function(progressEvent){
+			console.log("start reading");
+			var series = [];
+			var episode = { title: "", season: 0, number: 1, script: [] };
+
+			var lines = this.result.split('\n');
+			for(var i = 0; i < lines.length; i++){
+				if(lines[i].includes("THE END")){
+					series.push(episode);
+					episode = { title: "", season: 0, episode: episode.number + 1, script: [] };
+				} else if(lines[i].length > 1){
+					console.log(lines[i]);
+		  			episode.script.push(parseLine(lines[i]));
+		  			if(lines[i + 1] == null){
+		  				series.push(episode);
+		  			}
+				}
+
+			}
+
+			var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({series: series}));
+			var dlAnchorElem = document.getElementById('downloadAnchorElem');
+			dlAnchorElem.setAttribute("href", dataStr);
+			dlAnchorElem.setAttribute("download", "captainsLog.json");
+			dlAnchorElem.setAttribute("style", "display: block");
+		};
+		reader.readAsText(file);
+		console.log("finsihed with file");
+	};
+
+	function parseLine(line){
+		if(line){
+			var trimmedLine = line.trim();
+			if(trimmedLine[0] == '[' || trimmedLine[0] == '('){
+      			return parseStageDirection(trimmedLine);
+      		}
+      		for(var i = 0; i < trimmedLine.length; i++){
+      			if(trimmedLine[i] == ':'){
+      				return parseDialogue(trimmedLine);
+      			}
+      		}
+  			return parseSetting(trimmedLine);
+		}
+		return null;
+	}
+
+	function parseStageDirection(line){
+		return { TYPE: "ST", text: line.substring(0, line.length - 1) };
+	}
+
+	function parseSetting(line){
+		return { TYPE: "SE", text: line.substring(0, line.length - 1) };
+	}
+
+	function parseDialogue(line){
+		console.log("line: " + line);
+		var dialogue = { TYPE: "DI", character: null, text: null };
+		for(var i = 0; i < line.length; i++){
+	  		if(line[i] == ':'){
+	  			var upperCaseChar = line.substring(0, i);
+	  			dialogue.character = upperCaseChar.substring(0, 1).toUpperCase() + upperCaseChar.substring(1).toLowerCase();
+	  			console.log("CPAYBARA");
+	  			console.log(line.substring(i + 2, line.length));
+	  			var text = line.substring(i + 2, line.length);
+
+  				text.replace("/\[.*?\]\s?/g", '');
+  				text.replace("/\(.*?\)\s?/g", '');
+	  			dialogue.text = text;
+	  			console.log(text);
+	  			continue;
+	  		}
+	  	}
+	  	return dialogue;
+	}
+</script>
+</html>
